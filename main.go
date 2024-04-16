@@ -2,19 +2,27 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-//checks if two rectangles collide with eachother
-func checkBounds(r1 sdl.Rect, r2 sdl.Rect) bool{
+const (
+	screenW = 640
+	screenH = 480
+)
+
+var blocks []sdl.Rect
+
+// checks if two rectangles collide with eachother
+func checkBounds(r1 sdl.Rect, r2 sdl.Rect) bool {
 	r1End := r1.X + r1.W
 	width := r2.X + r2.W
 
-	if  (r1.X >= r2.X && r1.X <= width) || (r1End >= r2.X && r1End <= width){
+	if (r1.X >= r2.X && r1.X <= width) || (r1End >= r2.X && r1End <= width) {
 		r1Height := r1.Y + r1.H
 		height := r2.Y + r2.H
-		if (r1.Y >= r2.Y && r1.Y <= height) || (r1Height >= r2.Y && r1Height <= height){
+		if (r1.Y >= r2.Y && r1.Y <= height) || (r1Height >= r2.Y && r1Height <= height) {
 			return true
 		}
 	}
@@ -22,11 +30,26 @@ func checkBounds(r1 sdl.Rect, r2 sdl.Rect) bool{
 	return false
 }
 
+// function that takes in an X and Y and gives which tile the point is currently in
+func getTile(x int, y int) sdl.Rect {
+	xOffset := int32(x / 32)
 
+	if x%32 > 0 {
+		xOffset++
+	}
+
+	yOffset := int32(y / 32)
+
+	if y%32 > 0 {
+		yOffset++
+	}
+
+	return sdl.Rect{X: xOffset * 32, Y: yOffset * 32, W: 32, H: 32}
+}
 
 func main() {
 	sdl.Init(sdl.INIT_EVERYTHING)
-	window, renderer, err := sdl.CreateWindowAndRenderer(640, 480, 0)
+	window, renderer, err := sdl.CreateWindowAndRenderer(screenW, screenH, 0)
 
 	closeRequested := false
 
@@ -56,16 +79,45 @@ func main() {
 
 	destRect := sdl.Rect{X: 0, Y: 0, W: 32, H: 32}
 
-	for !closeRequested {
-		renderer.Clear()
-		renderer.Copy(tex, &spriteRect, &destRect)
-		renderer.Present()
+	up := false
 
-		//make sure to put PollEvent to a variable because the rendering thread can go to nil mid-check and cause a null reference error
-		event := sdl.PollEvent()
-		if event != nil && event.GetType() == sdl.QUIT {
-			closeRequested = true
+	test := createSprite(renderer, tex, sdl.Rect{X: 75, Y: 75, W: 32, H: 32}, 3, 5)
+
+	test.addFrame(sdl.Rect{X: 0, Y: 0, W: 16, H: 16})
+	test.addFrame(sdl.Rect{X: 16, Y: 0, W: 16, H: 16})
+	test.addFrame(sdl.Rect{X: 32, Y: 0, W: 16, H: 16})
+
+	for !closeRequested {
+		//event checking for user input
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch event.(type) {
+			case *sdl.QuitEvent:
+				closeRequested = true
+			case *sdl.KeyboardEvent:
+				keyEvent := event.(*sdl.KeyboardEvent)
+				if keyEvent.Type == sdl.KEYDOWN {
+					switch keyEvent.Keysym.Scancode {
+					case sdl.SCANCODE_W, sdl.SCANCODE_UP:
+						up = true
+					}
+				} else if keyEvent.Type == sdl.KEYUP {
+					switch keyEvent.Keysym.Scancode {
+					case sdl.SCANCODE_S, sdl.SCANCODE_DOWN:
+						up = false
+					}
+				}
+
+			}
 		}
 
+		renderer.Clear()
+		if up {
+			destRect.X += 1
+		}
+		renderer.Copy(tex, &spriteRect, &destRect)
+		renderer.Copy(tex, &sdl.Rect{X: 64, Y: 0, W: 16, H: 16}, &sdl.Rect{X: 50, Y: 0, W: 32, H: 32})
+		test.animateWithFreezeFrame(!up)
+		renderer.Present()
+		time.Sleep(time.Second / 60)
 	}
 }

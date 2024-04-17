@@ -13,10 +13,11 @@ type Sprite struct {
 	ticksPerFrame int
 	renderer      *sdl.Renderer
 	texture       *sdl.Texture
-	position      sdl.Rect
+	position      *sdl.Rect
+	spriteType    string
 }
 
-func createSprite(rend *sdl.Renderer, tex *sdl.Texture, pos sdl.Rect, frames int, ticks int) Sprite {
+func createSprite(rend *sdl.Renderer, tex *sdl.Texture, pos *sdl.Rect, frames int, ticks int, spriteType string) Sprite {
 	s := Sprite{}
 	s.frameCount = frames
 	s.currentFrame = 0
@@ -25,6 +26,7 @@ func createSprite(rend *sdl.Renderer, tex *sdl.Texture, pos sdl.Rect, frames int
 	s.position = pos
 	s.tick = 0
 	s.ticksPerFrame = ticks
+	s.spriteType = spriteType
 
 	return s
 }
@@ -45,12 +47,12 @@ func (s *Sprite) animate() {
 		s.currentFrame = 0
 	}
 
-	s.renderer.Copy(s.texture, &s.frames[s.currentFrame], &s.position)
+	s.renderer.Copy(s.texture, &s.frames[s.currentFrame], s.position)
 }
 
 func (s *Sprite) animateWithFreezeFrame(freeze bool) {
 	if freeze {
-		s.renderer.Copy(s.texture, &s.frames[0], &s.position)
+		s.renderer.Copy(s.texture, &s.frames[0], s.position)
 		return
 	}
 
@@ -65,5 +67,5 @@ func (s *Sprite) animateWithFreezeFrame(freeze bool) {
 		s.currentFrame = 0
 	}
 
-	s.renderer.Copy(s.texture, &s.frames[s.currentFrame], &s.position)
+	s.renderer.Copy(s.texture, &s.frames[s.currentFrame], s.position)
 }

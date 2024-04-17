@@ -12,7 +12,7 @@ const (
 	screenH = 480
 )
 
-var blocks []sdl.Rect
+var blocks = make(map[sdl.Rect][]*Sprite)
 
 // checks if two rectangles collide with eachother
 func checkBounds(r1 sdl.Rect, r2 sdl.Rect) bool {
@@ -47,8 +47,10 @@ func getTile(x int, y int) sdl.Rect {
 	return sdl.Rect{X: xOffset * 32, Y: yOffset * 32, W: 32, H: 32}
 }
 
-// finds nearby tiles to the current tile
-func getContactTiles(x int, y int) []*sdl.Rect {
+// finds nearby tiles to the current tile (based on the point) that are colliding with the selected point
+// use the map to get tiles inside the selected tile to check object collision
+// repurpose this code to check for floor tiles using a different data structure and respond accordingly
+func getCollidingTiles(x int, y int) []*sdl.Rect {
 	curTile := getTile(x, y)
 	var tiles []*sdl.Rect
 	for i := curTile.X - 32; i <= curTile.X+96; i += 32 {
@@ -64,8 +66,11 @@ func getContactTiles(x int, y int) []*sdl.Rect {
 				continue
 			}
 
+			tiles = append(tiles, &tempTile)
 		}
 	}
+
+	return tiles
 }
 
 func main() {
@@ -102,7 +107,7 @@ func main() {
 
 	up := false
 
-	test := createSprite(renderer, tex, sdl.Rect{X: 75, Y: 75, W: 32, H: 32}, 3, 5)
+	test := createSprite(renderer, tex, &sdl.Rect{X: 75, Y: 75, W: 32, H: 32}, 3, 5, "player")
 
 	test.addFrame(sdl.Rect{X: 0, Y: 0, W: 16, H: 16})
 	test.addFrame(sdl.Rect{X: 16, Y: 0, W: 16, H: 16})

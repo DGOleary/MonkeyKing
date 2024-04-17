@@ -47,6 +47,27 @@ func getTile(x int, y int) sdl.Rect {
 	return sdl.Rect{X: xOffset * 32, Y: yOffset * 32, W: 32, H: 32}
 }
 
+// finds nearby tiles to the current tile
+func getContactTiles(x int, y int) []*sdl.Rect {
+	curTile := getTile(x, y)
+	var tiles []*sdl.Rect
+	for i := curTile.X - 32; i <= curTile.X+96; i += 32 {
+		if i < 0 || i > screenW-1 {
+			continue
+		}
+		for j := curTile.Y - 32; j <= curTile.Y+96; j += 32 {
+			if j < 0 || j > screenH-1 {
+				continue
+			}
+			tempTile := sdl.Rect{X: i, Y: j, H: 32, W: 32}
+			if !(curTile == tempTile) {
+				continue
+			}
+
+		}
+	}
+}
+
 func main() {
 	sdl.Init(sdl.INIT_EVERYTHING)
 	window, renderer, err := sdl.CreateWindowAndRenderer(screenW, screenH, 0)

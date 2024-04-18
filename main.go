@@ -12,7 +12,9 @@ const (
 	screenH = 480
 )
 
-var blocks = make(map[sdl.Rect][]*Sprite)
+var objects = make(map[sdl.Rect][]*Sprite)
+
+var boundaries = make(map[sdl.Rect][]*Boundary)
 
 // checks if two rectangles collide with eachother
 func checkBounds(r1 sdl.Rect, r2 sdl.Rect) bool {
@@ -50,7 +52,8 @@ func getTile(x int, y int) sdl.Rect {
 // finds nearby tiles to the current tile (based on the point) that are colliding with the selected point
 // use the map to get tiles inside the selected tile to check object collision
 // repurpose this code to check for floor tiles using a different data structure and respond accordingly
-func getCollidingTiles(x int, y int) []*sdl.Rect {
+// TODO deprecated
+func getNearbyTiles(x int, y int) []*sdl.Rect {
 	curTile := getTile(x, y)
 	var tiles []*sdl.Rect
 	for i := curTile.X - 32; i <= curTile.X+96; i += 32 {
@@ -71,6 +74,25 @@ func getCollidingTiles(x int, y int) []*sdl.Rect {
 	}
 
 	return tiles
+}
+
+// given a coordinate pair and a screen tile, check if any of the boundaries in that tile collide with the given point
+func checkCollide(x int, y int, rect *sdl.Rect) bool {
+	bound, exists := boundaries[*rect]
+
+	if !exists {
+		return false
+	}
+
+	for _, val := range bound {
+		if x >= val.X && x <= (val.X+val.W) {
+			if y >= val.Y && y <= (val.Y+val.H) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func main() {

@@ -27,6 +27,8 @@ var tiles []*sdl.Rect
 
 var ladders []*sdl.Rect
 
+var ladderMap = make(map[sdl.Rect]Boundary)
+
 // checks if two rectangles collide with eachother
 func checkBounds(r1 sdl.Rect, r2 sdl.Rect) bool {
 	r1End := r1.X + r1.W
@@ -87,7 +89,7 @@ func getFloorHeight(x int, y int) int {
 		return screenH - 32
 	}
 
-	for player.Y < screenH {
+	for player.Y <= screenH {
 		floors, in := boundaries[player]
 		if !in {
 			player.Y += 32
@@ -134,8 +136,18 @@ func checkCollide(x int, y int, rect *sdl.Rect) bool {
 	return false
 }
 
+// checks if a ladder is at that location
+func checkLadder(x int, y int) bool {
+	player := getTile(x, y)
+
+	_, in := ladderMap[player]
+
+	return in
+}
+
 // creates girders with random varying heights from eachother on the screen
 func createGirders() {
+	dis := 608
 	for i := 32; i <= screenH-32; i += 128 {
 		height := int32(i)
 		ladderCount := 0
@@ -143,9 +155,9 @@ func createGirders() {
 			//randomly stays the same as the last beam tile, or gets higher/lower
 			switch rand.Intn(3) {
 			case 1:
-				height++
-			case 2:
 				height--
+			case 2:
+				height++
 			}
 			//testing to make sure (highly unlikely) the boundary doesn't entirely leave the tile it should begin in
 			if math.Abs(float64(i)-float64(height)) == 32 {
@@ -157,7 +169,15 @@ func createGirders() {
 			screenLoc := getTile(j, int(height))
 
 			if screenLoc.Y == int32(i) {
-				boundaries[block] = append(boundaries[block], &Boundary{X: j, Y: int(height), W: 32, H: 32})
+				//if the girder moves down it will be contained in the same tile, so it thinks it's at ground height, this checks if that happens and registers the tile it goes into
+				if height > screenLoc.Y {
+					boundaries[screenLoc] = append(boundaries[screenLoc], &Boundary{X: j, Y: int(height), W: 32, H: 32})
+					//also add the tile underneath
+					under := sdl.Rect{X: screenLoc.X, Y: screenLoc.Y + 32, H: 32, W: 32}
+					boundaries[under] = append(boundaries[under], &Boundary{X: j, Y: int(height), W: 32, H: 32})
+				} else {
+					boundaries[block] = append(boundaries[block], &Boundary{X: j, Y: int(height), W: 32, H: 32})
+				}
 			} else {
 				boundaries[screenLoc] = append(boundaries[screenLoc], &Boundary{X: j, Y: int(height), W: 32, H: 32})
 				//also add the tile underneath
@@ -167,16 +187,20 @@ func createGirders() {
 
 			if i > 32 && j == 640 {
 				ladderCount++
-				height -= 32
-				distanceToBeam := 128
+				distanceToBeam := 160
 				for distanceToBeam != 0 {
-					ladders = append(ladders, &sdl.Rect{X: int32(j) - 32, Y: height, H: 32, W: 32})
+					//index the ladder by the actual tile it is inside of
+					tile := getTile(dis, int(height))
+					loc := sdl.Rect{X: int32(dis), Y: height, H: 32, W: 32}
+					ladders = append(ladders, &loc)
+					ladderMap[tile] = Boundary{X: dis, Y: int(height), H: 32, W: 32}
 					height -= 32
 					distanceToBeam -= 32
 				}
 			}
 			tiles = append(tiles, &block)
 		}
+		dis -= 32 * 2
 	}
 }
 
@@ -207,7 +231,7 @@ func main() {
 	}
 	defer tex.Destroy()
 
-	down, left, right := false, false, false
+	up, down, left, right := false, false, false, false
 
 	jump := false
 
@@ -219,8 +243,14 @@ func main() {
 	//this stores the height from where the player jumped, when returning to the ground it's stored so if he jumps into an above tile he doesn't teleport to it thinking that's the ground
 	landHeight := 0
 
+	//stores if the player is currently climbing
+	climbing := false
+
 	//creates the player sprite
 	player := createSprite(renderer, tex, &sdl.Rect{X: 75, Y: 900, W: 32, H: 32}, 3, 5, "player")
+
+	//disables movement
+	disabled := false
 
 	//adds frames and different animations to the player sprite
 	//walking
@@ -238,6 +268,7 @@ func main() {
 	//holds how to flip the player
 	flip := sdl.FLIP_NONE
 
+	//barrel
 	barrel := createSprite(renderer, tex, &sdl.Rect{X: 600, Y: 900, W: 32, H: 32}, 3, 5, "barrel")
 	barrel.addFrame(sdl.Rect{X: 48, Y: 0, W: 16, H: 16}, 0)
 	barrel.addFrame(sdl.Rect{X: 64, Y: 0, W: 16, H: 16}, 0)
@@ -255,30 +286,57 @@ func main() {
 				closeRequested = true
 			case *sdl.KeyboardEvent:
 				keyEvent := event.(*sdl.KeyboardEvent)
-				if keyEvent.Type == sdl.KEYDOWN {
+				ladderOnTile := checkLadder(int(player.position.X+16), int(player.position.Y))
+				fmt.Println(ladderOnTile)
+				if ladderOnTile && !climbing && !jump {
+					landHeight = int(player.position.Y)
+				}
+				if keyEvent.Type == sdl.KEYDOWN && !disabled {
 					switch keyEvent.Keysym.Scancode {
 					case sdl.SCANCODE_W, sdl.SCANCODE_UP:
 						down = false
-						if !jump {
+						up = true
+						if ladderOnTile && !jump {
+							climbing = true
+							left = false
+							right = false
+							landHeight = int(player.position.Y)
+						} else if !jump {
 							jump = true
 							landHeight = int(player.position.Y)
 						}
 					case sdl.SCANCODE_S, sdl.SCANCODE_DOWN:
 						down = true
+						up = false
+						if (ladderOnTile || checkLadder(int(player.position.X+16), int(player.position.Y+32))) && !jump {
+							climbing = true
+							left = false
+							right = false
+							landHeight = int(player.position.Y)
+						}
 					case sdl.SCANCODE_A, sdl.SCANCODE_LEFT:
-						left = true
-						right = false
-						flip = sdl.FLIP_NONE
+						if !climbing || (climbing && int(player.position.Y) == landHeight) {
+							climbing = false
+							left = true
+							right = false
+							flip = sdl.FLIP_NONE
+						}
 					case sdl.SCANCODE_D, sdl.SCANCODE_RIGHT:
-						left = false
-						right = true
-						flip = sdl.FLIP_HORIZONTAL
+						if !climbing || (climbing && int(player.position.Y) == landHeight) {
+							climbing = false
+							left = false
+							right = true
+							flip = sdl.FLIP_HORIZONTAL
+						}
 					}
 				} else if keyEvent.Type == sdl.KEYUP {
 					switch keyEvent.Keysym.Scancode {
 					case sdl.SCANCODE_W, sdl.SCANCODE_UP:
+						up = false
+						disabled = false
 					case sdl.SCANCODE_S, sdl.SCANCODE_DOWN:
 						down = false
+						disabled = false
 					case sdl.SCANCODE_A, sdl.SCANCODE_LEFT:
 						left = false
 					case sdl.SCANCODE_D, sdl.SCANCODE_RIGHT:
@@ -309,8 +367,32 @@ func main() {
 				}
 			}
 		}
-		if down {
-			player.position.Y += 1
+
+		nextFloor, in := boundaries[getTile(int(player.position.X), int(player.position.Y))]
+		_, above := boundaries[getTile(int(player.position.X), int(player.position.Y-32))]
+
+		if up && climbing {
+			if in && !above && player.position.Y > int32(nextFloor[0].Y)-32 {
+				climbing = false
+				up = false
+				down = false
+				disabled = true
+				player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
+			} else {
+				player.position.Y -= 1
+			}
+
+		}
+		if down && climbing {
+			if in {
+				// climbing = false
+				// up = false
+				// down = false
+				// disabled = true
+				// player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
+			} else {
+				player.position.Y += 1
+			}
 		}
 		if left {
 			player.position.X -= speed
@@ -329,8 +411,10 @@ func main() {
 			renderer.Copy(tex, &sdl.Rect{X: 112, Y: 0, W: 16, H: 16}, rect)
 		}
 
-		if !jump {
-			player.position.Y = int32(getFloorHeight(int(player.position.X), int(player.position.Y)) - 32)
+		if climbing {
+			player.animateWithFreezeFrame(2, !(up || down), sdl.FLIP_NONE)
+		} else if !jump {
+			//player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
 			player.animateWithFreezeFrame(0, !(left || right), flip)
 		} else {
 			player.animate(1, flip)

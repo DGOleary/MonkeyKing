@@ -145,6 +145,13 @@ func checkLadder(x int, y int) bool {
 	return in
 }
 
+func calculateFibonacci(x int) int {
+	if x == 0 || x == 1 {
+		return x
+	}
+	return calculateFibonacci(x-2) + calculateFibonacci(x-1)
+}
+
 // creates girders with random varying heights from eachother on the screen
 func createGirders() {
 	dis := 608
@@ -278,6 +285,7 @@ func main() {
 	createGirders()
 
 	for !closeRequested {
+		//go fmt.Println(calculateFibonacci(rand.Intn(30)))
 		//event checking for user input
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			//can ignore warning because it's uneeded as a variable
@@ -287,7 +295,7 @@ func main() {
 			case *sdl.KeyboardEvent:
 				keyEvent := event.(*sdl.KeyboardEvent)
 				ladderOnTile := checkLadder(int(player.position.X+16), int(player.position.Y))
-				fmt.Println(ladderOnTile)
+				//fmt.Println(ladderOnTile)
 				if ladderOnTile && !climbing && !jump {
 					landHeight = int(player.position.Y)
 				}
@@ -308,7 +316,7 @@ func main() {
 					case sdl.SCANCODE_S, sdl.SCANCODE_DOWN:
 						down = true
 						up = false
-						if (ladderOnTile || checkLadder(int(player.position.X+16), int(player.position.Y+32))) && !jump {
+						if ladderOnTile && !jump {
 							climbing = true
 							left = false
 							right = false
@@ -385,11 +393,11 @@ func main() {
 		}
 		if down && climbing {
 			if in {
-				// climbing = false
-				// up = false
-				// down = false
-				// disabled = true
-				// player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
+				climbing = false
+				up = false
+				down = false
+				disabled = true
+				player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
 			} else {
 				player.position.Y += 1
 			}
@@ -414,7 +422,7 @@ func main() {
 		if climbing {
 			player.animateWithFreezeFrame(2, !(up || down), sdl.FLIP_NONE)
 		} else if !jump {
-			//player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
+			player.position.Y = int32(getFloorHeight(int(player.position.X)+16, int(player.position.Y)) - 32)
 			player.animateWithFreezeFrame(0, !(left || right), flip)
 		} else {
 			player.animate(1, flip)

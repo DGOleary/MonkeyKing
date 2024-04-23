@@ -30,7 +30,7 @@ type Boundary struct {
 	W int
 }
 
-var objects [24]*Object
+var objects [40]*Object
 
 var boundaries = make(map[sdl.Rect][]*Boundary)
 
@@ -67,7 +67,7 @@ func getTile(x int, y int) sdl.Rect {
 }
 
 func makeBarrels(renderer *sdl.Renderer, tex *sdl.Texture, player *Sprite) {
-	for i := 0; i < 24; i++ {
+	for i := 0; i < len(objects); i++ {
 		o := createObject(renderer, tex, &sdl.Rect{X: 641, Y: int32(60 + (i%8)*128), W: 32, H: 32}, player.position)
 		objects[i] = &o
 	}
@@ -205,7 +205,7 @@ func reset(renderer *sdl.Renderer, tex *sdl.Texture, player *Sprite) {
 	dead = false
 	flip = sdl.FLIP_NONE
 	player.position = &sdl.Rect{X: 75, Y: 900, W: 32, H: 32}
-	objects = [24]*Object{}
+	objects = [40]*Object{}
 	boundaries = make(map[sdl.Rect][]*Boundary)
 	tiles = []*sdl.Rect{}
 	ladders = []*sdl.Rect{}
@@ -456,7 +456,7 @@ func main() {
 
 				if barrel.getX() > 640 {
 					//random chance to throw a barrel
-					if rand.Intn(200) == 1 {
+					if rand.Intn(400) == 1 {
 						barrel.setEnabled(true)
 					}
 				}
